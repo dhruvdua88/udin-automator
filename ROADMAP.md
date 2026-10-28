@@ -93,6 +93,8 @@ The single largest evidence gap is behind login: exact DOM, dropdowns, OTP behav
 
 - Ingest PDF, DOCX, scanned PDF; batch cards; encrypted/unsupported handling.
 - Classifier for v1: **Form 3CA/3CB + 3CD, GSTR-9C, company statutory audit report, net-worth/turnover/15CB certificates, bank-branch audit**.
+- **DeepSeek extraction layer (text + OCR + page vision):** native text parsed locally (PyMuPDF/pdfplumber), OCR for scans, page vision for layout/handwriting; DeepSeek returns a strict UDIN JSON payload (schema in [docs/PIPELINE.md](docs/PIPELINE.md)) with verbatim-substring and enum-only guards.
+- **Both confirmation modes:** per-document review for audit/tax reports; per-batch exception review for certificates (only flagged rows need attention).
 - Extractor registry with per-field confidence and **page-region provenance** (click a value → see its source).
 - Portal-mirrored review form (same categories/sub-types/order/labels as portal; dynamic key-field rows with numeric/alphanumeric typing).
 - Pre-flight validator: PAN regex + entity-type char; GSTIN mod-36 checksum; signing date ≤ today and ≤60 days; duplicate SHA-256/client+type+date; AY/FY consistency; category↔form consistency.
