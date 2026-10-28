@@ -35,11 +35,12 @@ the document **before** DSC signing → keep a firm-grade UDIN register.
 1. **[Executive summary](research/00-executive-summary.md)** — bottom line, corrections to the brief, evidence.
 2. **[ROADMAP.md](ROADMAP.md)** — architecture, 6 phases with exit criteria, workflows, risks, decisions.
 3. **[Autonomy roadmap (L0→L5)](ROADMAP-AUTONOMY.md)** — batch autopilot, lights-out operations, and the ICAI-sanctioned zero-human path.
-4. **[Official requirements](research/01-udin-official-requirements.md)** — mandate, document types, fields, rules.
-5. **[Portal technical recon](research/02-udin-portal-technical-recon.md)** — SPA architecture, auth, endpoints, feasibility.
-6. **[Document workflow & tools](research/03-document-workflow-and-tools.md)** — extraction, stamping, signature order, market.
-7. **[Precedents, OTP UX, security](research/04-automation-precedents-security.md)** — risk register, credentials, DPDP.
-8. **[Guidelines 2026 digest](research/05-udin-guidelines-2026-digest.md)** — statutory Guidelines, s.44AB validation, 60-audit ceiling.
+4. **[Pipeline spec](docs/PIPELINE.md)** — DeepSeek extraction (native text + OCR + vision), strict UDIN JSON, per-document and per-batch confirmation, portal fill, OTP, capture, stamp, register.
+5. **[Official requirements](research/01-udin-official-requirements.md)** — mandate, document types, fields, rules.
+6. **[Portal technical recon](research/02-udin-portal-technical-recon.md)** — SPA architecture, auth, endpoints, feasibility.
+7. **[Document workflow & tools](research/03-document-workflow-and-tools.md)** — extraction, stamping, signature order, market.
+8. **[Precedents, OTP UX, security](research/04-automation-precedents-security.md)** — risk register, credentials, DPDP.
+9. **[Guidelines 2026 digest](research/05-udin-guidelines-2026-digest.md)** — statutory Guidelines, s.44AB validation, 60-audit ceiling.
 
 ---
 
@@ -54,6 +55,7 @@ the document **before** DSC signing → keep a firm-grade UDIN register.
 - **Field-level validation under s.44AB is live** (Feb 2026) and a **60-tax-audit ceiling** is enforced at the portal from **1 Apr 2026** — the app must validate these *before* the OTP window.
 - **Guidelines on UDIN, 2026** (issued under s.15 of the CA Act) make the **register** and **client communication** obligations, require **verifier notification on revocation**, and allow **public disclosure** of violations.
 - **Autonomy path:** batch autopilot can remove the human from all the work (~1 OTP per 300 certificates, or per 10 tax-audit UDINs) in ~20 weeks; literal zero-human (L5) requires an ICAI-sanctioned API/delegation — see [ROADMAP-AUTONOMY.md](ROADMAP-AUTONOMY.md).
+- **Pipeline:** DeepSeek API extraction over **native text + OCR + page vision**, strict UDIN JSON with verbatim/enum guards, then **per-document or per-batch confirmation**, portal fill, CAPTCHA/OTP by the member, UDIN capture, stamp, register — see [docs/PIPELINE.md](docs/PIPELINE.md).
 
 ---
 
@@ -63,6 +65,7 @@ the document **before** DSC signing → keep a firm-grade UDIN register.
 |---|---|
 | [`ROADMAP.md`](ROADMAP.md) | Architecture, phased plan, best workflows, risks, decision gates, definition of done |
 | [`ROADMAP-AUTONOMY.md`](ROADMAP-AUTONOMY.md) | Ambition roadmap L0→L5: batch autopilot, lights-out ops, metrics, ICAI-sanctioned zero-human track |
+| [`docs/PIPELINE.md`](docs/PIPELINE.md) | End-to-end pipeline: DeepSeek extraction (text + OCR + vision), confirmation modes, portal fill, OTP, capture, stamp, register |
 | [`research/00-executive-summary.md`](research/00-executive-summary.md) | Synthesis with corrections and open questions |
 | [`research/01-…`](research/01-udin-official-requirements.md) | Official ICAI requirements and field schema |
 | [`research/02-…`](research/02-udin-portal-technical-recon.md) | Portal recon (SPA, auth, endpoints, feasibility) |
