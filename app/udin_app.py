@@ -278,30 +278,53 @@ async def captcha_png(cdp: CDP) -> bytes | None:
 
 
 async def fill_captcha_and_login(cdp: CDP, captcha: str) -> dict:
-    js = """(() => {
+    set_js = """(() => {
       const set = (el, v) => {
         const proto = HTMLInputElement.prototype;
         Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, v);
         el.dispatchEvent(new Event('input', { bubbles: true }));
         el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
       };
       const inputs = [...document.querySelectorAll('input')];
       const captchaInput = inputs.find((i) => (i.placeholder || '').toUpperCase().includes('CAPTCHA'))
         || inputs.find((i) => (i.id || '').toLowerCase().includes('captcha'));
       if (!captchaInput) return { ok: false, reason: 'captcha input not found' };
+      captchaInput.focus();
       set(captchaInput, %s);
-      const inForm = [...document.querySelectorAll('form button')]
-        .find((b) => /^\\s*LOGIN\\s*$/i.test(b.innerText));
-      const submit = [...document.querySelectorAll('button[type="submit"]')]
-        .find((b) => /LOGIN/i.test(b.innerText));
-      const fallback = [...document.querySelectorAll('button')]
-        .filter((b) => /^\\s*LOGIN\\s*$/i.test(b.innerText)).pop();
-      const btn = inForm || submit || fallback;
-      if (!btn) return { ok: false, reason: 'LOGIN button not found' };
-      btn.click();
       return { ok: true };
     })()""" % json.dumps(captcha)
-    return await evaluate(cdp, js)
+    res = await evaluate(cdp, set_js)
+    if not res or not res.get("ok"):
+        return res or {"ok": False, "reason": "captcha set failed"}
+
+    state = None
+    for _ in range(14):
+        state = await evaluate(cdp, """(() => {
+          const inForm = [...document.querySelectorAll('form button')]
+            .find((b) => /^\\s*LOGIN\\s*$/i.test(b.innerText));
+          const submit = [...document.querySelectorAll('button[type="submit"]')]
+            .find((b) => /LOGIN/i.test(b.innerText));
+          const b = inForm || submit;
+          if (!b) return null;
+          b.scrollIntoView({ block: 'center' });
+          const r = b.getBoundingClientRect();
+          return { disabled: b.disabled, x: r.x + r.width / 2, y: r.y + r.height / 2,
+                   text: (b.innerText || '').trim() };
+        })()""")
+        if state and not state["disabled"]:
+            break
+        await asyncio.sleep(0.25)
+
+    if not state:
+        return {"ok": False, "reason": "LOGIN button not found"}
+    if state["disabled"]:
+        return {"ok": False, "reason": "LOGIN stayed disabled - the CAPTCHA value was not accepted"}
+    await cdp.send("Input.dispatchMouseEvent",
+                   {"type": "mousePressed", "x": state["x"], "y": state["y"], "button": "left", "clickCount": 1})
+    await cdp.send("Input.dispatchMouseEvent",
+                   {"type": "mouseReleased", "x": state["x"], "y": state["y"], "button": "left", "clickCount": 1})
+    return {"ok": True, "clicked": state["text"]}
 
 
 async def fill_otp_and_submit(cdp: CDP, otp: str) -> dict:
@@ -531,6 +554,15 @@ def run_ui(payload_path: str | None = None) -> int:
             res = await fill_captcha_and_login(cdp, captcha)
             if not res.get("ok"):
                 say(f"captcha submit failed: {res}")
+                png = await captcha_png(cdp)
+                if png:
+                    path = OUT_DIR / "captcha-ui.png"
+                    path.write_bytes(png)
+                    img = Image.open(path)
+                    root.after(0, lambda: show_captcha(img))
+                    set_status("Could not submit — new CAPTCHA loaded, try again")
+                else:
+                    set_status("CAPTCHA submit failed — see log")
                 return
             await asyncio.sleep(3.5)
             state = await detect_state(cdp)
