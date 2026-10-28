@@ -8,6 +8,7 @@
 ## 0. One-page answer
 
 - **What is achievable in ~20 weeks:** **L4 — lights-out operations with one gesture.** The firm runs a nightly pipeline that ingests signed documents, extracts and validates every portal field, batches them, pre-fills the portal, and pauses only for the member's **single OTP gesture per batch** (one per 300 certificates, one per 10 tax-audit UDINs). The member never opens the portal, never keys a field, never reviews routine documents. Median active human time: **≤ 60 seconds/day**.
+- **The pipeline (confirmed 28 Oct 2026):** **DeepSeek API extraction on both modalities** — native text after local parsing/OCR, and page **vision** for scans/layout/handwriting — producing a strict UDIN JSON payload, then **both confirmation modes** (per document and per batch) before the member's OTP; portal fill, capture, stamp, register. Full spec: [docs/PIPELINE.md](docs/PIPELINE.md).
 - **What is not achievable by engineering alone:** **L5 — literally zero humans.** ICAI's portal requires a per-member CAPTCHA + OTP, the 2026 Guidelines make UDIN the signing member's personal attestation, and firms cannot register. Intercepting OTPs or solving CAPTCHAs would be a terms-of-use breach, would undermine the attestation itself, and invites disciplinary action (including published penalties under Guidelines Ch. IX). **L5 is a rules problem, not a code problem.**
 - **How we pursue L5 anyway:** a formal **ICAI-sanctioned integration** track — Guidelines §13 already contemplates MoU/API arrangements with agencies; we propose a controlled firm-level API or a pre-authorised batch model, with member-bound keys and an audit trail. Timeline: proposal in month 1, pilot by month 6–9 if accepted, production by month 12–18. If ICAI declines, **L4 is the permanent ceiling** and we say so.
 
@@ -92,22 +93,32 @@ flowchart LR
       B[Email / Graph] --> N
       C[Drive / DMS webhook] --> N
     end
-    N --> X[Classifier + extractor<br/>confidence + provenance]
-    X --> V[Validator<br/>PAN, GSTIN, 60-day,<br/>44AB, ceiling, dupes,<br/>e-filing 5 params]
-    V --> Q[Queue + batcher<br/>by category / signing date / FRN]
-    Q --> D[Portal driver<br/>Playwright, persistent profile]
-    D <-->|batch + OTP window| P[(udin.icai.org)]
-    M[Member phone<br/>batch summary + OTP entry] <-->|encrypted local relay| D
-    D --> R[Capture UDIN + QR]
-    R --> S[Stamper → DSC signer]
-    S --> G[(Register + hash ledger)]
-    G --> O[Monitors: parity vs portal CSV,<br/>deadlines, ceiling, invalidations,<br/>portal-change canary]
-    O --> E[Exception report<br/>to ops lead]
+    N --> R{Page router<br/>text layer? layout?}
+    R -- native text --> T[Text + tables<br/>PyMuPDF / pdfplumber]
+    R -- scanned --> O[OCR<br/>Tesseract / PaddleOCR]
+    R -- layout / handwriting --> V[Vision model<br/>page images]
+    T --> X[DeepSeek extraction API<br/>strict UDIN JSON schema]
+    O --> X
+    V --> X
+    X --> G[Guardrails<br/>verbatim · enum-only · PAN/GSTIN<br/>44AB · ceiling · 5 params · dupes]
+    G --> C{Confirmation mode}
+    C -- per document --> CD[Review card<br/>fields + provenance + confidence]
+    C -- per batch --> CB[Batch exception review<br/>flagged rows only]
+    CD --> D[Portal driver<br/>Playwright, persistent profile]
+    CB --> D
+    D <-->|login · fill · preview| P[(udin.icai.org)]
+    M[Member:<br/>CAPTCHA + OTP] <-->|desk or phone relay| D
+    D --> R2[Capture UDIN + QR]
+    R2 --> S[Stamper → DSC signer]
+    S --> G2[(Register + hash ledger)]
+    G2 --> O2[Monitors: parity vs portal CSV,<br/>deadlines, ceiling, invalidations]
 ```
 
 **Design rules:** idempotent batches; every UDIN keyed to document SHA-256; drafts persisted before any OTP; fail closed to manual on any selector/canary mismatch; no credential, OTP or CAPTCHA automation anywhere; one vault and one profile per signing member.
 
 **The OTP bridge (legitimate options only):** (a) desk prompt; (b) phone companion — the member receives the OTP on their own phone, types it into the companion app, which relays it over an encrypted local channel to the driver; (c) future DigiCA biometric approval if ICAI exposes one. All keep the human as the authenticator; none read SMS or email.
+
+**4.1 Extraction stack — both modalities (confirmed 28 Oct 2026).** The app supports **native-text extraction** (PyMuPDF/pdfplumber → DeepSeek text model) and **page vision** (page images → vision model) with **OCR as both fallback and cross-check**. A per-page router picks the path; numeric fields (amounts, PAN, dates) are cross-checked across two paths and any disagreement forces human confirmation — the model never majority-votes money. DeepSeek receives a strict JSON schema (category/sub-category/form/section, act, FRN, signing date, client name, auditee PAN, opinion, preceding-year block, key-field pairs, description, MoC, s.44AB answers) and every value must be a verbatim substring of the source; enum fields may only take portal values. Default is **hybrid** (deterministic local extraction for identifiers + LLM for classification/opinion/description), with a local-model fallback for clients who refuse cloud processing. Full spec: [docs/PIPELINE.md](docs/PIPELINE.md).
 
 ---
 
@@ -123,7 +134,10 @@ Assumes approval at week 0; durations overlap deliberately.
 
 ### Phase 1 — Straight-through document engine (weeks 2–8)
 - Connectors: watch folder, email, Drive/DMS; dedupe by hash.
+- **Extraction stack (both modalities):** page router → native text (PyMuPDF/pdfplumber), OCR (Tesseract/PaddleOCR) for scans, **vision model on page images** for layout/handwriting; numeric fields cross-checked across paths.
+- **DeepSeek API extraction:** two-pass (classify document type → strict UDIN JSON), JSON mode, temperature 0, page-cited provenance, verbatim-substring guard, enum-only dropdowns.
 - Extractors for 8 document types (3CA/3CB+3CD, GSTR-9C, company audit, bank branch, net-worth, turnover, 15CB, funds-utilisation certificates).
+- **Both confirmation modes:** per-document review for audit reports/tax audits; per-batch exception review for certificates; configurable firm policy.
 - Validation: PAN/GSTIN/date/60-day/dupes, **s.44AB eligibility**, **60-audit ceiling**, category↔form consistency, e-filing 5 parameters.
 - Review queue only for low confidence; high-confidence documents pre-approved by firm policy (partner configures once).
 - **Exit metric:** ≥90% fields auto-filled; ≥90% documents need <3 corrections; 100 documents/day throughput.
@@ -131,6 +145,7 @@ Assumes approval at week 0; durations overlap deliberately.
 ### Phase 2 — Batch autopilot (weeks 6–14)
 - Certificates: build the per-sub-category Excel template, 3–300 per batch, native bulk upload.
 - Tax Audit / Audit & Assurance: 3–10 per UI batch (Aug-2026 facility), or row-by-row fill with batch OTP.
+- **Confirmation before OTP (both modes):** per-document review for audit reports/tax audits; per-batch exception review for certificates — only flagged rows need attention.
 - Capture all returned UDINs + QR, map back to documents, auto-stamp, auto-register.
 - Revoke/regenerate runbook, still OTP-authenticated by the member.
 - **Exit metric:** ≤1 touch per 100 certificate UDINs; ≤10 per 100 tax-audit UDINs; batch success ≥99%; 0 invalidations.
@@ -160,6 +175,7 @@ Assumes approval at week 0; durations overlap deliberately.
 |---|---|---|---|
 | Human touches / 100 UDINs | OTP entries + field corrections + manual steps | ≤1 (cert), ≤10 (tax) | app event log |
 | Straight-through rate | Documents needing no human field change | ≥95% | extraction audit |
+| Confirmation burden | Rows a human actually reviews | exceptions only (batch); 100% high-stakes (per-doc) | review log |
 | Register parity | App register vs portal CSV, row by row | 100% | portal export |
 | Invalidated UDINs | e-filing 5-param failures | 0 | e-filing portal |
 | Active human time | Median seconds/day | ≤60 s | screen-time log |
@@ -178,6 +194,8 @@ Assumes approval at week 0; durations overlap deliberately.
 | Account lockout / rate limits | One attempt per batch, no parallel sessions, capped retries |
 | Credential compromise (SSP = full ICAI identity) | DPAPI/Credential Manager, per-member vault, device binding, no argv/logs |
 | Invalid UDIN / wrong category / ceiling breach | 44AB eligibility + ceiling + 5-param validator before OTP; human-confirmed low-confidence fields |
+| LLM extraction error / hallucinated value | verbatim-substring guard, enum-only values, two-path cross-check on money, confidence thresholds, mandatory confirmation |
+| Client data sent to DeepSeek cloud | hybrid minimisation by default, DPA/no-retention, per-client opt-in, local/self-hosted model fallback |
 | Guidelines discipline + public disclosure | Register completeness, client communication, verifier notices, legal review |
 | "Autopilot" misread as OTP interception | Product copy states the boundary; no SMS/email reading; no CAPTCHA solving |
 
