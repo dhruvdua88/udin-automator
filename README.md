@@ -4,8 +4,9 @@
 > (`udin.icai.org`, migrated to the **ICAI DigiCA** platform in December 2025), plus a phased plan for a
 > document-aware, **assisted** UDIN generator app for Chartered Accountant firms.
 
-**Status:** research phase — this repository contains research and planning documents only; there is no
-portal-automation code here. Research is current as of **27 October 2026**.
+**Status:** research + build phase — research is current as of **27 October 2026**; a working desktop
+login slice now lives in [`app/`](app/) (real Chrome over CDP, in-app CAPTCHA panel, OTP panel, DPAPI vault,
+HAR-style logging). Nothing is automated beyond those two human gates.
 
 ---
 
@@ -41,6 +42,7 @@ the document **before** DSC signing → keep a firm-grade UDIN register.
 7. **[Document workflow & tools](research/03-document-workflow-and-tools.md)** — extraction, stamping, signature order, market.
 8. **[Precedents, OTP UX, security](research/04-automation-precedents-security.md)** — risk register, credentials, DPDP.
 9. **[Guidelines 2026 digest](research/05-udin-guidelines-2026-digest.md)** — statutory Guidelines, s.44AB validation, 60-audit ceiling.
+10. **[Desktop app architecture](docs/APP-ARCHITECTURE.md)** — real Chrome over CDP, JS/DOM fills, HAR as observability (never replay), DPAPI vault, state machine, build slices.
 
 ---
 
@@ -56,6 +58,7 @@ the document **before** DSC signing → keep a firm-grade UDIN register.
 - **Guidelines on UDIN, 2026** (issued under s.15 of the CA Act) make the **register** and **client communication** obligations, require **verifier notification on revocation**, and allow **public disclosure** of violations.
 - **Autonomy path:** batch autopilot can remove the human from all the work (~1 OTP per 300 certificates, or per 10 tax-audit UDINs) in ~20 weeks; literal zero-human (L5) requires an ICAI-sanctioned API/delegation — see [ROADMAP-AUTONOMY.md](ROADMAP-AUTONOMY.md).
 - **Pipeline:** DeepSeek API extraction over **native text + OCR + page vision**, strict UDIN JSON with verbatim/enum guards, then **per-document or per-batch confirmation**, portal fill, CAPTCHA/OTP by the member, UDIN capture, stamp, register — see [docs/PIPELINE.md](docs/PIPELINE.md).
+- **Desktop slice (working):** `python app/udin_app.py --ui` launches real Chrome, fills credentials, extracts the live CAPTCHA image for the member to read, and pauses for OTP. Engine self-test verified 28 Oct 2026; HAR is recorded for observability, never replayed.
 
 ---
 
@@ -66,6 +69,8 @@ the document **before** DSC signing → keep a firm-grade UDIN register.
 | [`ROADMAP.md`](ROADMAP.md) | Architecture, phased plan, best workflows, risks, decision gates, definition of done |
 | [`ROADMAP-AUTONOMY.md`](ROADMAP-AUTONOMY.md) | Ambition roadmap L0→L5: batch autopilot, lights-out ops, metrics, ICAI-sanctioned zero-human track |
 | [`docs/PIPELINE.md`](docs/PIPELINE.md) | End-to-end pipeline: DeepSeek extraction (text + OCR + vision), confirmation modes, portal fill, OTP, capture, stamp, register |
+| [`docs/APP-ARCHITECTURE.md`](docs/APP-ARCHITECTURE.md) | Desktop app design: Chrome/CDP engine, state machine, DPAPI vault, build slices |
+| [`app/`](app/) | Working proof-of-slice: `udin_app.py` (engine + Tkinter UI), requirements, run notes |
 | [`research/00-executive-summary.md`](research/00-executive-summary.md) | Synthesis with corrections and open questions |
 | [`research/01-…`](research/01-udin-official-requirements.md) | Official ICAI requirements and field schema |
 | [`research/02-…`](research/02-udin-portal-technical-recon.md) | Portal recon (SPA, auth, endpoints, feasibility) |
