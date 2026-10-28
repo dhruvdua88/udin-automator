@@ -34,6 +34,9 @@ python app\form_ui.py --file app\templates\udin_batch_template.xlsx
 
 # validation engine self-test
 python app\test_model.py
+
+# assistant with a prepared payload (what "Prepare in portal" launches)
+python app\udin_app.py --ui --payload "%LOCALAPPDATA%\UDINApp\pending_payload.json"
 ```
 
 Outputs (never inside the repo):
@@ -59,12 +62,14 @@ Outputs (never inside the repo):
 - self-test verified 28 Oct 2026: login page loaded, CAPTCHA PNG extracted (≈3 KB), form IDs confirmed;
 - canonical UDIN payload + validator (`udin_model.py`): PAN, dates/60-day, description charset, opinion and preceding-year blocks, key-field minimums, s.44AB warnings;
 - Excel batch template + stdlib XLSX/CSV reader: rows → payloads → same validator;
-- validated manual form (`form_ui.py`): every required field, load Excel/CSV, save payload JSON — starts cleanly.
+- validated manual form (`form_ui.py`): four-step workbench, adaptive fields, live inline validation, Excel/CSV batch table, JSON export — starts cleanly;
+- **Prepare in portal**: saves the validated payload and launches the assistant with `--payload`; after login the assistant fills the Generate UDIN form (category, FRN, type, act, signing date, PAN, description, remarks, corporate figures) and reports the blocks left for manual completion.
 
 ## Not built yet (next slices)
 
+- complete the remaining portal blocks automatically: auditor's-opinion subfields, preceding-year block, denomination selects, FY dates;
+- Save Draft → Preview → Send OTP → capture UDIN/QR, then stamp and register;
 - document → UDIN JSON extraction (local parse + OCR/vision + DeepSeek) that prefills the form;
-- portal fill from the payload (Type of Audit, Act, Opinion, figures), Save Draft, Preview, Submit, UDIN capture;
 - batch submission through the portal's bulk path (3–300 certificates; 3–10 tax/audit);
 - stamping before DSC, register, deadlines, e-filing validation;
 - packaging (PyInstaller) and signed installer.
