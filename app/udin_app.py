@@ -30,6 +30,8 @@ import time
 import urllib.request
 from pathlib import Path
 
+from portal_fill import GENERATE_URL, fill_generation
+
 APP_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "UDINApp"
 PROFILE_DIR = APP_DIR / "chrome-profile"
 LOG_DIR = APP_DIR / "logs"
@@ -368,13 +370,19 @@ async def selftest(headless: bool = True) -> int:
 # --------------------------------------------------------------------------- #
 # Tkinter desktop UI
 # --------------------------------------------------------------------------- #
-def run_ui() -> int:
+def run_ui(payload_path: str | None = None) -> int:
     import tkinter as tk
     from tkinter import messagebox, ttk
 
     from PIL import Image, ImageTk
 
     ensure_dirs()
+    payload: dict = {}
+    if payload_path:
+        try:
+            payload = json.loads(Path(payload_path).read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            print(f"could not read payload: {exc}")
     loop = asyncio.new_event_loop()
     threading.Thread(target=loop.run_forever, daemon=True).start()
     session = ChromeSession(headless=False)
@@ -446,10 +454,30 @@ def run_ui() -> int:
         say("Login page loaded")
         return cdp
 
+    async def fill_from_payload(cdp) -> None:
+        if not payload:
+            return
+        try:
+            await cdp.send("Page.navigate", {"url": GENERATE_URL})
+            await asyncio.sleep(3)
+            result = await fill_generation(cdp, payload)
+            say("portal fill: " + json.dumps(result)[:500])
+            set_status("Form prefilled — review the browser, then Send OTP")
+        except Exception as exc:  # noqa: BLE001
+            say(f"portal fill failed: {exc}")
+            set_status("Prefill failed — fill the browser manually")
+
     def do_start():
         async def run():
             try:
                 cdp = await open_login()
+                state = await detect_state(cdp)
+                if state == "dashboard":
+                    say("Already logged in")
+                    set_status("Logged in")
+                    if payload:
+                        await fill_from_payload(cdp)
+                    return
                 user = user_var.get().strip()
                 pw = pass_var.get()
                 if user and pw:
@@ -500,6 +528,8 @@ def run_ui() -> int:
             say(f"state after login: {state}")
             if state == "dashboard":
                 set_status("Logged in — backend session is live")
+                if payload:
+                    await fill_from_payload(cdp)
             elif state == "otp":
                 root.after(0, lambda: otp_frame.pack(fill="x", padx=12, pady=8))
                 set_status("OTP required — enter the OTP")
@@ -527,6 +557,8 @@ def run_ui() -> int:
             state = await detect_state(cdp)
             say(f"state after OTP: {state}")
             set_status("Logged in" if state == "dashboard" else "Check the browser window")
+            if state == "dashboard" and payload:
+                await fill_from_payload(cdp)
 
         submit(run())
 
@@ -553,11 +585,12 @@ def main() -> int:
     parser.add_argument("--selftest", action="store_true")
     parser.add_argument("--headed", action="store_true", help="show Chrome in selftest")
     parser.add_argument("--ui", action="store_true", help="open the desktop UI")
+    parser.add_argument("--payload", default=None, help="JSON payload to prefill after login")
     args = parser.parse_args()
     if args.selftest:
         return asyncio.run(selftest(headless=not args.headed))
     if args.ui:
-        return run_ui()
+        return run_ui(args.payload)
     parser.print_help()
     return 2
 
