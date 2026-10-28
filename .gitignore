@@ -8,6 +8,8 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+app/__pycache__/
+app/ui-*.txt
 
 # OS noise
 Thumbs.db
