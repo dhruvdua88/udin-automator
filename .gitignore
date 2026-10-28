@@ -1,0 +1,14 @@
+# Local source copies and third-party tooling (copyright / large binaries)
+research/_sources/
+*.pdf
+*.zip
+
+# Python / tooling noise
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# OS noise
+Thumbs.db
+.DS_Store
