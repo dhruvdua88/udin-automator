@@ -7,7 +7,12 @@ HTTP replay, no CAPTCHA solving, no hidden automation.
 
 ```text
 app/
-  udin_app.py        engine + Tkinter UI (single file, no build step)
+  udin_app.py        login engine + Tkinter UI (CAPTCHA/OTP panels)
+  form_ui.py         validated manual form (all UDIN fields, load Excel, save JSON)
+  udin_model.py      canonical payload + validation + XLSX/CSV batch reader (stdlib)
+  make_template.py   generates the Excel batch template (needs openpyxl)
+  templates/         udin_batch_template.xlsx
+  test_model.py      validation self-test
   requirements.txt   websockets, Pillow, pywin32 (already installed on this machine)
 ```
 
@@ -22,6 +27,13 @@ python app\udin_app.py --selftest --headed
 
 # desktop UI (real Chrome window + in-app CAPTCHA/OTP panels)
 python app\udin_app.py --ui
+
+# validated manual form (all required fields, validation, load Excel/CSV, save JSON)
+python app\form_ui.py
+python app\form_ui.py --file app\templates\udin_batch_template.xlsx
+
+# validation engine self-test
+python app\test_model.py
 ```
 
 Outputs (never inside the repo):
@@ -44,12 +56,16 @@ Outputs (never inside the repo):
 - extracts the live CAPTCHA `<img alt="CAPTCHA">` and shows it in the Tkinter panel;
 - submits the CAPTCHA + LOGIN, detects dashboard / OTP / error state;
 - OTP panel and submit path;
-- self-test verified 28 Oct 2026: login page loaded, CAPTCHA PNG extracted (≈3 KB), form IDs confirmed.
+- self-test verified 28 Oct 2026: login page loaded, CAPTCHA PNG extracted (≈3 KB), form IDs confirmed;
+- canonical UDIN payload + validator (`udin_model.py`): PAN, dates/60-day, description charset, opinion and preceding-year blocks, key-field minimums, s.44AB warnings;
+- Excel batch template + stdlib XLSX/CSV reader: rows → payloads → same validator;
+- validated manual form (`form_ui.py`): every required field, load Excel/CSV, save payload JSON — starts cleanly.
 
 ## Not built yet (next slices)
 
-- document → UDIN JSON extraction (local parse + OCR/vision + DeepSeek);
-- generation-form fill, Save Draft, Preview, Submit, UDIN capture;
+- document → UDIN JSON extraction (local parse + OCR/vision + DeepSeek) that prefills the form;
+- portal fill from the payload (Type of Audit, Act, Opinion, figures), Save Draft, Preview, Submit, UDIN capture;
+- batch submission through the portal's bulk path (3–300 certificates; 3–10 tax/audit);
 - stamping before DSC, register, deadlines, e-filing validation;
 - packaging (PyInstaller) and signed installer.
 
@@ -68,4 +84,6 @@ No Playwright/Selenium and no `pip install` needed on this machine — but
 `requirements.txt` is provided for clean installs.
 
 See [`../docs/APP-ARCHITECTURE.md`](../docs/APP-ARCHITECTURE.md) for the design,
-state machine, build slices and the reason HAR is recorded but never replayed.
+state machine, build slices and the reason HAR is recorded but never replayed, and
+[`../docs/INPUT-MODES.md`](../docs/INPUT-MODES.md) for the document / form / Excel
+input modes and the validation matrix.
