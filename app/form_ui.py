@@ -532,12 +532,28 @@ class App:
     def prepare(self) -> None:
         result = self.validate_now()
         if not result["ok"]:
+            messagebox.showwarning("Validation", "Fix the errors before preparing.")
             return
+        import os
+        import subprocess
+
+        app_dir = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "UDINApp"
+        app_dir.mkdir(parents=True, exist_ok=True)
+        pending = app_dir / "pending_payload.json"
+        pending.write_text(json.dumps(self.payload(), indent=2), encoding="utf-8")
+        assistant = Path(__file__).with_name("udin_app.py")
+        subprocess.Popen(
+            [sys.executable, str(assistant), "--ui", "--payload", str(pending)],
+            cwd=str(Path(__file__).parent),
+        )
+        self.footer_status.configure(text="UDIN Assistant opened — log in, then review the prefilled form")
         messagebox.showinfo(
-            "Ready",
-            "Payload is valid.\n\nPortal fill (Chrome/CDP) is the next slice: it will pre-fill the "
-            "official form, show the CAPTCHA, and pause for your OTP.\n\n"
-            "Use 'Save payload JSON' to keep this prepared payload."
+            "Preparing in portal",
+            "The UDIN Assistant is opening.\n\n"
+            "1. Log in with your CAPTCHA and OTP.\n"
+            "2. The Generate UDIN form is prefilled from this payload.\n"
+            "3. Review it in the browser; complete the fields the assistant reports as skipped.\n"
+            "4. Send OTP only when you are satisfied.",
         )
 
     def choose_document(self) -> None:
