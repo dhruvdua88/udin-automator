@@ -43,6 +43,7 @@ the document **before** DSC signing → keep a firm-grade UDIN register.
 8. **[Precedents, OTP UX, security](research/04-automation-precedents-security.md)** — risk register, credentials, DPDP.
 9. **[Guidelines 2026 digest](research/05-udin-guidelines-2026-digest.md)** — statutory Guidelines, s.44AB validation, 60-audit ceiling.
 10. **[Desktop app architecture](docs/APP-ARCHITECTURE.md)** — real Chrome over CDP, JS/DOM fills, HAR as observability (never replay), DPAPI vault, state machine, build slices.
+11. **[Input modes](docs/INPUT-MODES.md)** — document, validated manual form, and Excel/CSV batch, all converging on one verified UDIN payload.
 
 ---
 
@@ -59,6 +60,7 @@ the document **before** DSC signing → keep a firm-grade UDIN register.
 - **Autonomy path:** batch autopilot can remove the human from all the work (~1 OTP per 300 certificates, or per 10 tax-audit UDINs) in ~20 weeks; literal zero-human (L5) requires an ICAI-sanctioned API/delegation — see [ROADMAP-AUTONOMY.md](ROADMAP-AUTONOMY.md).
 - **Pipeline:** DeepSeek API extraction over **native text + OCR + page vision**, strict UDIN JSON with verbatim/enum guards, then **per-document or per-batch confirmation**, portal fill, CAPTCHA/OTP by the member, UDIN capture, stamp, register — see [docs/PIPELINE.md](docs/PIPELINE.md).
 - **Desktop slice (working):** `python app/udin_app.py --ui` launches real Chrome, fills credentials, extracts the live CAPTCHA image for the member to read, and pauses for OTP. Engine self-test verified 28 Oct 2026; HAR is recorded for observability, never replayed.
+- **Three input modes:** a document (extraction), a validated manual form (`app/form_ui.py`), or an Excel/CSV batch (`app/templates/udin_batch_template.xlsx`) — all converge on one payload checked by `app/udin_model.py` before the portal is touched.
 
 ---
 
@@ -70,7 +72,8 @@ the document **before** DSC signing → keep a firm-grade UDIN register.
 | [`ROADMAP-AUTONOMY.md`](ROADMAP-AUTONOMY.md) | Ambition roadmap L0→L5: batch autopilot, lights-out ops, metrics, ICAI-sanctioned zero-human track |
 | [`docs/PIPELINE.md`](docs/PIPELINE.md) | End-to-end pipeline: DeepSeek extraction (text + OCR + vision), confirmation modes, portal fill, OTP, capture, stamp, register |
 | [`docs/APP-ARCHITECTURE.md`](docs/APP-ARCHITECTURE.md) | Desktop app design: Chrome/CDP engine, state machine, DPAPI vault, build slices |
-| [`app/`](app/) | Working proof-of-slice: `udin_app.py` (engine + Tkinter UI), requirements, run notes |
+| [`docs/INPUT-MODES.md`](docs/INPUT-MODES.md) | Document / manual-form / Excel input modes, validation matrix, batch template |
+| [`app/`](app/) | Proof-of-slice: login engine (`udin_app.py`), validated form (`form_ui.py`), payload model (`udin_model.py`), Excel template, tests |
 | [`research/00-executive-summary.md`](research/00-executive-summary.md) | Synthesis with corrections and open questions |
 | [`research/01-…`](research/01-udin-official-requirements.md) | Official ICAI requirements and field schema |
 | [`research/02-…`](research/02-udin-portal-technical-recon.md) | Portal recon (SPA, auth, endpoints, feasibility) |
