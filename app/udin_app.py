@@ -41,6 +41,8 @@ LOGIN_URL = "https://udin.icai.org/ICAI/login"
 DEFAULT_PORT = 9333
 
 CHROME_CANDIDATES = [
+    str(APP_DIR / "browser" / "chrome-win64" / "chrome.exe"),
+    str(APP_DIR / "browser" / "chrome.exe"),
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
     r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
@@ -288,7 +290,13 @@ async def fill_captcha_and_login(cdp: CDP, captcha: str) -> dict:
         || inputs.find((i) => (i.id || '').toLowerCase().includes('captcha'));
       if (!captchaInput) return { ok: false, reason: 'captcha input not found' };
       set(captchaInput, %s);
-      const btn = [...document.querySelectorAll('button')].find((b) => /^\\s*LOGIN\\s*$/i.test(b.innerText));
+      const inForm = [...document.querySelectorAll('form button')]
+        .find((b) => /^\\s*LOGIN\\s*$/i.test(b.innerText));
+      const submit = [...document.querySelectorAll('button[type="submit"]')]
+        .find((b) => /LOGIN/i.test(b.innerText));
+      const fallback = [...document.querySelectorAll('button')]
+        .filter((b) => /^\\s*LOGIN\\s*$/i.test(b.innerText)).pop();
+      const btn = inForm || submit || fallback;
       if (!btn) return { ok: false, reason: 'LOGIN button not found' };
       btn.click();
       return { ok: true };
@@ -322,6 +330,8 @@ async def detect_state(cdp: CDP) -> str:
         return "dashboard"
     if "otp" in text and ("verify" in text or "enter" in text or "resend" in text):
         return "otp"
+    if "welcome to icai" in text and "captcha" in text:
+        return "login_page"
     if any(w in text for w in ("invalid captcha", "incorrect", "wrong", "captcha is not valid")):
         return "error"
     return "unknown"
@@ -438,10 +448,9 @@ def run_ui(payload_path: str | None = None) -> int:
         status.set(msg)
 
     def ensure_chrome():
-        if running["chrome"]:
-            return cdp_holder.get("cdp")
-        session.start()
-        running["chrome"] = True
+        if not running["chrome"]:
+            session.start()
+            running["chrome"] = True
         return session.page_ws()
 
     async def open_login():
@@ -537,6 +546,16 @@ def run_ui(payload_path: str | None = None) -> int:
                 txt = (await body_text(cdp))[:300]
                 say("error text: " + txt)
                 set_status("Login error — see log")
+            elif state in ("login_page", "unknown"):
+                png = await captcha_png(cdp)
+                if png:
+                    path = OUT_DIR / "captcha-ui.png"
+                    path.write_bytes(png)
+                    img = Image.open(path)
+                    root.after(0, lambda: show_captcha(img))
+                    set_status("Login didn't go through — new CAPTCHA loaded, try again")
+                else:
+                    set_status("Unknown state — see log")
             else:
                 set_status("Unknown state — see log")
 
